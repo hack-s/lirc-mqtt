@@ -106,6 +106,14 @@ void lm::callback::connected(const std::string &cause) {
               << " using QoS" << QOS << "\n"
               << "\nPress Q<Enter> to quit\n" << std::endl;
 
+    std::vector<std::string> allDeviceNames = deviceStateManager->getDeviceNames();
+    for (const auto& deviceName : allDeviceNames) {
+        Json::Value mqttDeviceInterview;
+        if (deviceStateManager->asMqttDescription(deviceName, mqttDeviceInterview)) {
+            cli_.publish("/ir-devices", mqttDeviceInterview.asString());
+        }
+    }
+
     cli_.subscribe("ir/#", QOS, nullptr, subListener_);
 }
 
@@ -128,29 +136,62 @@ void lm::callback::message_arrived(mqtt::const_message_ptr msg) {
     Json::Reader r;
     r.parse(msg->to_string(), messageJson);
 
-    auto lDeviceStateManager = deviceStateManager;
+    auto queueIt = messageQueue.find(messageJson["deviceName"].asString());
+    if (queueIt == messageQueue.end()) {
+        std::cout << "Error processing message, unknown device: " << messageJson["deviceName"] << std::endl;
+    } else {
+        queueIt->second.first->push(messageJson);
+    }
+}
 
-    std::thread t([messageJson, lDeviceStateManager] {
-        std::string deviceName = messageJson["deviceName"].asString();
-        for (const auto & toggle : messageJson["toggles"]) {
+lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts, const lm::Properties &properties)
+        : nretry_(0), cli_(cli), connOpts_(connOpts), subListener_("Subscription"), _properties(properties), deviceStateManager(std::make_shared<DeviceStateManager>(properties)) {
+    auto names = deviceStateManager->getDeviceNames();
 
-            std::string toggleName = toggle["name"].asString();
-            std::string value = toggle["value"].asString();
+    for (const auto& deviceName : names) {
+        auto queue = std::make_shared<BlockingQueue<Json::Value>>();
+        auto lDeviceStateManager = deviceStateManager;
 
-            std::string button;
-            std::size_t  numInvokes;
-            if (lDeviceStateManager->moveToState(deviceName, toggleName, value, button, numInvokes)) {
-                for (unsigned int i=0; i < numInvokes; i++) {
-                    if (toggleName == "sleep") {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(std::stoi(value)));
-                    } else {
-                        sendLircControl(deviceName, button);
+        auto t = std::make_shared<std::thread>([lDeviceStateManager, deviceName, queue] {
+
+            Json::Value messageJson;
+
+            while (queue->pop(messageJson)) {
+                for (const auto & toggle : messageJson["toggles"]) {
+
+                    std::string toggleName = toggle["deviceName"].asString();
+                    std::string value = toggle["value"].asString();
+
+                    std::string button;
+                    std::size_t  numInvokes;
+                    if (lDeviceStateManager->moveToState(deviceName, toggleName, value, button, numInvokes)) {
+                        for (unsigned int i=0; i < numInvokes; i++) {
+                            if (toggleName == "sleep") {
+                                std::this_thread::sleep_for(std::chrono::milliseconds(std::stoi(value)));
+                            } else {
+                                sendLircControl(deviceName, button);
+                            }
+                        }
+                        lDeviceStateManager->setState(deviceName, toggleName, value);
                     }
                 }
-                lDeviceStateManager->setState(deviceName, toggleName, value);
             }
-        }
-    });
+
+        });
+
+        messageQueue.insert(std::make_pair(deviceName, std::make_pair(queue, t)));
+
+    }
+}
+
+lm::callback::~callback() {
+
+    for (auto& queueEntry : messageQueue) {
+        queueEntry.second.first->requestShutdown();
+    }
+    for (auto& queueEntry : messageQueue) {
+        queueEntry.second.second->join();
+    }
 }
 
 void lm::action_listener::on_failure(const mqtt::token &tok) {

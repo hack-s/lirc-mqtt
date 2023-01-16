@@ -53,10 +53,18 @@ namespace lm {
         bool moveToState(const std::string& deviceName, const std::string& toggleName, const std::string& value, std::string& rtnButton, std::size_t& rtnNumInvokes);
         bool setState(const std::string& deviceName, const std::string& toggleName, const std::string& value);
 
-        std::shared_ptr<Json::Value> asMqttDescription(const DeviceState& state);
+        bool asMqttDescription(const std::string& deviceName, Json::Value& mqttDescription);
 
         const Properties& getProperties() {
             return _properties;
+        }
+
+        std::vector<std::string> getDeviceNames() {
+            std::vector<std::string> names;
+            for (const auto & deviceState : _deviceStates) {
+                names.push_back(deviceState.first);
+            }
+            return names;
         }
     };
 

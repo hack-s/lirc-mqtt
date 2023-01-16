@@ -112,8 +112,16 @@ namespace lm {
         return true;
     }
 
-    std::shared_ptr<Json::Value> DeviceStateManager::asMqttDescription(const DeviceState& state) {
+    bool DeviceStateManager::asMqttDescription(const std::string& deviceName, Json::Value& mqttDescription) {
         std::unique_lock<std::mutex> lock(ml);
+
+        auto stateIt = _deviceStates.find(deviceName);
+
+        if (stateIt == _deviceStates.end()) {
+            return false;
+        }
+
+        auto state = stateIt->second;
 
         Json::Value definition;
         definition["description"] = "IR interface for " + state._name;
@@ -177,12 +185,11 @@ namespace lm {
         data["supported"] = true;
         data["definition"] = definition;
 
-        auto mqttDescription = std::make_shared<Json::Value>();
 
-        (*mqttDescription)["type"] = "device_interview";
-        (*mqttDescription)["data"] = data;
+        (mqttDescription)["type"] = "device_interview";
+        (mqttDescription)["data"] = data;
 
-        return mqttDescription;
+        return true;
     }
 
     DeviceStateManager::DeviceStateManager(Properties properties) : _properties(std::move(properties)) {

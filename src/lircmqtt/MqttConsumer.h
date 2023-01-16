@@ -7,8 +7,9 @@
 
 #include <string>
 #include <atomic>
-#include <mqtt/async_client.h>
+#include "mqtt/async_client.h"
 #include "DeviceState.h"
+#include "BlockingQueue.h"
 
 namespace Json {
     class Value;
@@ -55,6 +56,7 @@ namespace lm {
 
         Properties _properties;
         std::shared_ptr<DeviceStateManager> deviceStateManager;
+        std::map<std::string, std::pair<std::shared_ptr<BlockingQueue<Json::Value>>, std::shared_ptr<std::thread>>> messageQueue;
 
         // This deomonstrates manually reconnecting to the broker by calling
         // connect() again. This is a possibility for an application that keeps
@@ -84,8 +86,8 @@ namespace lm {
         void delivery_complete(mqtt::delivery_token_ptr token) override {}
 
     public:
-        callback(mqtt::async_client &cli, mqtt::connect_options &connOpts, const Properties& properties)
-                : nretry_(0), cli_(cli), connOpts_(connOpts), subListener_("Subscription"), _properties(properties), deviceStateManager(std::make_shared<DeviceStateManager>(properties)) {}
+        callback(mqtt::async_client &cli, mqtt::connect_options &connOpts, const Properties& properties);
+        ~callback() override;
     };
 
     class MqttConsumer {
@@ -99,6 +101,8 @@ namespace lm {
         explicit MqttConsumer(const std::shared_ptr<DeviceStateManager>& deviceStateManager);
 
         int consume();
+
+        void sendDiscovery(const std::string);
 
         void stop() {
             isRunning = false;
