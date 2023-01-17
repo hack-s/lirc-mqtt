@@ -102,8 +102,6 @@ namespace lm {
 
         int consume();
 
-        void sendDiscovery(const std::string);
-
         void stop() {
             isRunning = false;
             cv.notify_all();

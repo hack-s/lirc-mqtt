@@ -108,9 +108,12 @@ void lm::callback::connected(const std::string &cause) {
 
     std::vector<std::string> allDeviceNames = deviceStateManager->getDeviceNames();
     for (const auto& deviceName : allDeviceNames) {
+        std::cout << "Sending device discovery for IR device config: " << deviceName << std::endl;
         Json::Value mqttDeviceInterview;
         if (deviceStateManager->asMqttDescription(deviceName, mqttDeviceInterview)) {
             cli_.publish(_properties.discoveryTopic, mqttDeviceInterview.asString());
+        } else {
+            std::cerr << "Device config not found for IR device config: " << deviceName << std::endl;
         }
     }
 
