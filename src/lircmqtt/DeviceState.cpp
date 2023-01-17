@@ -12,23 +12,54 @@ namespace lm {
     void DeviceStateManager::addDeviceState(const Json::Value &json) {
 
         DeviceState deviceState;
-        deviceState._name = json["name"].asString();
+        deviceState._name = json["deviceName"].asString();
         if (json.isMember("buttons")) {
             for (const auto & buttonValue : json["buttons"]) {
                 deviceState._buttons.push_back(buttonValue.asString());
             }
         }
-        for (Json::ArrayIndex  i=0; i < json["toggles"].size(); i++) {
+        for (auto deviceToggleJson : json["toggles"]) {
             DeviceToggle deviceToggle;
-            deviceToggle._name = json["toggles"][i]["name"].asString();
-            deviceToggle._button_up = json["toggles"][i]["buttonUp"].asString();
-            deviceToggle._button_down = json["toggles"][i]["buttonDown"].asString();
-            deviceToggle._type = json["toggles"][i]["type"].asString();
-            deviceToggle._wrap_around = json["toggles"][i]["wrapAround"].asBool();
-            for (const auto & j : json["toggles"][i]["values"]) {
-                deviceToggle._values.push_back(j.asString());
+
+            deviceToggle._name = deviceToggleJson["name"].asString();
+            if (deviceToggleJson.isMember("buttonUp")) {
+                deviceToggle._button_up = deviceToggleJson["buttonUp"].asString();
             }
-            deviceToggle._state = deviceToggle._values[0];
+            if (deviceToggleJson.isMember("buttonDown")) {
+                deviceToggle._button_down = deviceToggleJson["buttonDown"].asString();
+            }
+            
+            deviceToggle._type = deviceToggleJson["type"].asString();
+
+            if (deviceToggleJson.isMember("wrapAround")) {
+                deviceToggle._wrap_around = deviceToggleJson["wrapAround"].asBool();
+            } else {
+                deviceToggle._wrap_around = false;
+            }
+            
+            if (deviceToggleJson.isMember("values")) {
+                for (const auto &j: deviceToggleJson["values"]) {
+                    deviceToggle._values.push_back(j.asString());
+                }
+
+                if (!deviceToggle._values.empty()) {
+                    deviceToggle._state = deviceToggle._values[0];
+                }
+            }
+
+            if (deviceToggleJson.isMember("valueButtonMappings")) {
+                std::string initValue;
+                auto valueButtonMappings = deviceToggleJson["valueButtonMappings"];
+                for (Json::ArrayIndex j=0; j < valueButtonMappings.size(); j++) {
+                    auto value = valueButtonMappings[j]["value"].asString();
+                    if (j == 0) {
+                        initValue = value;
+                    }
+                    deviceToggle._valueToButtonMappings.insert(std::make_pair(valueButtonMappings[j]["button"].asString(), value));
+                }
+                deviceToggle._state = initValue;
+            }
+            
             deviceState._toggles.insert(std::make_pair(deviceToggle._name, deviceToggle));
         }
         std::unique_lock<std::mutex> lock(ml);
@@ -52,7 +83,29 @@ namespace lm {
             return false;
         }
 
-        if (toggleIt->second._state == value) {
+        if (!toggleIt->second._button_up.empty() || !toggleIt->second._button_down.empty()) {
+            return moveToStateUpDown(value, toggleIt->second, rtnButton, rtnNumInvoke);
+        } else if (!toggleIt->second._valueToButtonMappings.empty()) {
+            return moveToSButtonValueMapping(value, toggleIt->second, rtnButton, rtnNumInvoke);
+        } else {
+            return false;
+        }
+    }
+
+    bool DeviceStateManager::moveToSButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, size_t &rtnNumInvoke) const {
+        auto mapping = toggle._valueToButtonMappings.find(value);
+        if (mapping == toggle._valueToButtonMappings.end()) {
+            return false;
+        }
+
+        rtnButton = mapping->second;
+        rtnNumInvoke = 1;
+        return true;
+    }
+    
+    bool DeviceStateManager::moveToStateUpDown(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, size_t &rtnNumInvoke) const {
+        
+        if (toggle._state == value) {
             rtnNumInvoke = 0;
             return true;
         }
@@ -60,32 +113,32 @@ namespace lm {
         int currentValue = 0;
         int targetIndex = 0;
 
-        for (int i=0; i < toggleIt->second._values.size(); i++) {
-            if (toggleIt->second._state == toggleIt->second._values.at(i)) {
+        for (int i=0; i < toggle._values.size(); i++) {
+            if (toggle._state == toggle._values.at(i)) {
                 currentValue = i;
             }
 
-            if (value == toggleIt->second._values.at(i)) {
+            if (value == toggle._values.at(i)) {
                 targetIndex = i;
             }
         }
 
         if (targetIndex > currentValue) {
-            rtnButton = toggleIt->second._button_up;
+            rtnButton = toggle._button_up;
             rtnNumInvoke = currentValue - targetIndex;
         } else {
-            rtnButton = toggleIt->second._button_down;
+            rtnButton = toggle._button_down;
             rtnNumInvoke = targetIndex - currentValue;
         }
 
-        if (toggleIt->second._wrap_around && rtnButton.empty()) {
+        if (toggle._wrap_around && rtnButton.empty()) {
             if (targetIndex > currentValue) {
-                rtnButton = toggleIt->second._button_down;
+                rtnButton = toggle._button_down;
                 //rtnNumInvoke = currentValue + (deviceIt->second._values.size() - targetIndex);
             } else {
-                rtnButton = toggleIt->second._button_up;
+                rtnButton = toggle._button_up;
             }
-            rtnNumInvoke = toggleIt->second._values.size() - currentValue + targetIndex;
+            rtnNumInvoke = toggle._values.size() - currentValue + targetIndex;
         }
 
         return true;
@@ -158,7 +211,7 @@ namespace lm {
                 feature["type"] = "binary";
                 feature["value_off"] = "OFF";
                 feature["value_on"] = "ON";
-                feature["value_toggle"] = "TOGGLE";
+                //feature["value_toggle"] = "TOGGLE";
             }
             if ("enum" == _toggle.second._type) {
                 feature["type"] = "enum";
@@ -167,6 +220,10 @@ namespace lm {
 
                 for (const auto & _value : _toggle.second._values) {
                     values.append(_value);
+                }
+
+                for (const auto & _value : _toggle.second._valueToButtonMappings) {
+                    values.append(_value.first);
                 }
 
                 feature["values"] = values;

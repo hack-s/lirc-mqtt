@@ -25,6 +25,7 @@ namespace lm {
         std::string _button_up;
         std::string _button_down;
         bool _wrap_around;
+        std::map<std::string, std::string> _valueToButtonMappings;
     };
 
     struct DeviceState {
@@ -44,6 +45,9 @@ namespace lm {
         std::mutex ml;
         Properties _properties;
         std::map<std::string, DeviceState> _deviceStates;
+
+        bool moveToStateUpDown(const std::string& value, DeviceToggle &toggleIt, std::string &rtnButton, size_t &rtnNumInvoke) const;
+        bool moveToSButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, size_t &rtnNumInvoke) const;
 
     public:
         explicit DeviceStateManager(Properties  properties);
@@ -66,7 +70,9 @@ namespace lm {
             }
             return names;
         }
-    };
+
+
+        };
 
 } // lm
 

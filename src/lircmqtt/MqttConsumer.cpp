@@ -110,7 +110,7 @@ void lm::callback::connected(const std::string &cause) {
     for (const auto& deviceName : allDeviceNames) {
         Json::Value mqttDeviceInterview;
         if (deviceStateManager->asMqttDescription(deviceName, mqttDeviceInterview)) {
-            cli_.publish("/ir-devices", mqttDeviceInterview.asString());
+            cli_.publish(_properties.discoveryTopic, mqttDeviceInterview.asString());
         }
     }
 
