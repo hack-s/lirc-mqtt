@@ -26,9 +26,9 @@ std::shared_ptr<lm::DeviceStateManager> parseDeviceStates(const std::string& fil
     std::ifstream f(file);
     f >> root;
 
-    std::string ir_service_name = root["properties"]["ir_service_name"].asString();
-    std::string discovery_topic = root["properties"]["discovery_topic"].asString();
-    std::string mqtt_server = root["properties"]["mqtt_server"].asString();
+    std::string ir_service_name = root["properties"]["irServiceName"].asString();
+    std::string discovery_topic = root["properties"]["discoveryTopic"].asString();
+    std::string mqtt_server = root["properties"]["mqttServer"].asString();
 
     auto deviceStateManager = std::make_shared<lm::DeviceStateManager>(lm::Properties{ir_service_name, discovery_topic, mqtt_server});
 

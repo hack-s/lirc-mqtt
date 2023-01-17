@@ -50,7 +50,7 @@ namespace lm {
         bool moveToSButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, size_t &rtnNumInvoke) const;
 
     public:
-        explicit DeviceStateManager(Properties  properties);
+        explicit DeviceStateManager(Properties properties);
 
         void addDeviceState(const Json::Value& json);
 
