@@ -37,7 +37,7 @@ int lm::MqttConsumer::consume() {
     connOpts.set_clean_session(false);
 
     // Install the callback(s) before connecting.
-    callback cb(cli, connOpts, _deviceStateManager->getProperties());
+    callback cb(cli, connOpts, _deviceStateManager);
     cli.set_callback(cb);
 
     // Start the connection.
@@ -102,7 +102,7 @@ void lm::callback::on_failure(const mqtt::token &tok) {
 void lm::callback::connected(const std::string &cause) {
     std::cout << "\nConnection success" << std::endl;
     std::cout << "\nSubscribing to topic '" << "ir/#" << "'\n"
-              << "\tfor client " << _properties.serviceName
+              << "\tfor client " << _deviceStateManager->getProperties().serviceName
               << " using QoS" << QOS << std::endl;
 
     std::vector<std::string> allDeviceNames = _deviceStateManager->getDeviceNames();
@@ -110,7 +110,7 @@ void lm::callback::connected(const std::string &cause) {
         std::cout << "Sending device discovery for IR device config: " << deviceName << std::endl;
         Json::Value mqttDeviceInterview;
         if (_deviceStateManager->asMqttDescription(deviceName, mqttDeviceInterview)) {
-            cli_.publish(_properties.discoveryTopic, mqttDeviceInterview.asString());
+            cli_.publish(_deviceStateManager->getProperties().discoveryTopic, mqttDeviceInterview.asString());
         } else {
             std::cerr << "Device config not found for IR device config: " << deviceName << std::endl;
         }
