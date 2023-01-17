@@ -54,8 +54,7 @@ namespace lm {
         // An action listener to display the result of actions.
         action_listener subListener_;
 
-        Properties _properties;
-        std::shared_ptr<DeviceStateManager> deviceStateManager;
+        std::shared_ptr<DeviceStateManager> _deviceStateManager;
         std::map<std::string, std::pair<std::shared_ptr<BlockingQueue<Json::Value>>, std::shared_ptr<std::thread>>> messageQueue;
 
         // This deomonstrates manually reconnecting to the broker by calling
@@ -86,7 +85,7 @@ namespace lm {
         void delivery_complete(mqtt::delivery_token_ptr token) override {}
 
     public:
-        callback(mqtt::async_client &cli, mqtt::connect_options &connOpts, const Properties& properties);
+        callback(mqtt::async_client &cli, mqtt::connect_options &connOpts, const std::shared_ptr<DeviceStateManager>& deviceStateManager);
         ~callback() override;
     };
 

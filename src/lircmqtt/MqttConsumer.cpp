@@ -103,14 +103,13 @@ void lm::callback::connected(const std::string &cause) {
     std::cout << "\nConnection success" << std::endl;
     std::cout << "\nSubscribing to topic '" << "ir/#" << "'\n"
               << "\tfor client " << _properties.serviceName
-              << " using QoS" << QOS << "\n"
-              << "\nPress Q<Enter> to quit\n" << std::endl;
+              << " using QoS" << QOS << std::endl;
 
-    std::vector<std::string> allDeviceNames = deviceStateManager->getDeviceNames();
+    std::vector<std::string> allDeviceNames = _deviceStateManager->getDeviceNames();
     for (const auto& deviceName : allDeviceNames) {
         std::cout << "Sending device discovery for IR device config: " << deviceName << std::endl;
         Json::Value mqttDeviceInterview;
-        if (deviceStateManager->asMqttDescription(deviceName, mqttDeviceInterview)) {
+        if (_deviceStateManager->asMqttDescription(deviceName, mqttDeviceInterview)) {
             cli_.publish(_properties.discoveryTopic, mqttDeviceInterview.asString());
         } else {
             std::cerr << "Device config not found for IR device config: " << deviceName << std::endl;
@@ -147,13 +146,13 @@ void lm::callback::message_arrived(mqtt::const_message_ptr msg) {
     }
 }
 
-lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts, const lm::Properties &properties)
-        : nretry_(0), cli_(cli), connOpts_(connOpts), subListener_("Subscription"), _properties(properties), deviceStateManager(std::make_shared<DeviceStateManager>(properties)) {
-    auto names = deviceStateManager->getDeviceNames();
+lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts, const std::shared_ptr<DeviceStateManager>& deviceStateManager)
+        : nretry_(0), cli_(cli), connOpts_(connOpts), subListener_("Subscription"), _deviceStateManager(deviceStateManager) {
+    auto names = _deviceStateManager->getDeviceNames();
 
     for (const auto& deviceName : names) {
         auto queue = std::make_shared<BlockingQueue<Json::Value>>();
-        auto lDeviceStateManager = deviceStateManager;
+        auto lDeviceStateManager = _deviceStateManager;
 
         auto t = std::make_shared<std::thread>([lDeviceStateManager, deviceName, queue] {
 
