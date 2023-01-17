@@ -101,20 +101,23 @@ void lm::callback::on_failure(const mqtt::token &tok) {
 
 void lm::callback::connected(const std::string &cause) {
     std::cout << "\nConnection success" << std::endl;
-    std::cout << "\nSubscribing to topic '" << "ir/#" << "'\n"
-              << "\tfor client " << _deviceStateManager->getProperties().serviceName
-              << " using QoS" << QOS << std::endl;
 
     std::vector<std::string> allDeviceNames = _deviceStateManager->getDeviceNames();
     for (const auto& deviceName : allDeviceNames) {
         std::cout << "Sending device discovery for IR device config: " << deviceName << std::endl;
         Json::Value mqttDeviceInterview;
         if (_deviceStateManager->asMqttDescription(deviceName, mqttDeviceInterview)) {
-            cli_.publish(_deviceStateManager->getProperties().discoveryTopic, mqttDeviceInterview.asString());
+            Json::FastWriter fastWriter;
+            std::string discoveryJsonAsString = fastWriter.write(mqttDeviceInterview);
+            cli_.publish(_deviceStateManager->getProperties().discoveryTopic, discoveryJsonAsString);
         } else {
             std::cerr << "Device config not found for IR device config: " << deviceName << std::endl;
         }
     }
+
+    std::cout << "\nSubscribing to topic '" << "ir/#" << "'\n"
+              << "\tfor client " << _deviceStateManager->getProperties().serviceName
+              << " using QoS" << QOS << std::endl;
 
     cli_.subscribe("ir/#", QOS, nullptr, subListener_);
 }
