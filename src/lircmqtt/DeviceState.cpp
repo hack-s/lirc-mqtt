@@ -7,12 +7,16 @@
 #include "json/json.h"
 
 #include <utility>
+#include <iostream>
 
 namespace lm {
     void DeviceStateManager::addDeviceState(const Json::Value &json) {
 
         DeviceState deviceState;
         deviceState._name = json["deviceName"].asString();
+
+        std::cout << "Adding device config for " << deviceState._name << std::endl;
+
         if (json.isMember("buttons")) {
             for (const auto & buttonValue : json["buttons"]) {
                 deviceState._buttons.push_back(buttonValue.asString());

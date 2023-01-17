@@ -44,7 +44,7 @@ int lm::MqttConsumer::consume() {
     // When completed, the callback will subscribe to topic.
 
     try {
-        std::cout << "Connecting to the MQTT server..." << std::flush;
+        std::cout << "Connecting to the MQTT server at " << _deviceStateManager->getProperties().mqttServer << " with client id " << _deviceStateManager->getProperties().serviceName << " ..." << std::endl << std::flush;
         cli.connect(connOpts, nullptr, cb);
     }
     catch (const mqtt::exception& exc) {
@@ -93,7 +93,7 @@ void lm::callback::reconnect() {
 }
 
 void lm::callback::on_failure(const mqtt::token &tok) {
-    std::cout << "Connection attempt failed" << std::endl;
+    std::cout << "Connection attempt failed to " << tok.get_connect_response().get_server_uri() << ", found session: " << tok.get_connect_response().is_session_present() << std::endl;
     if (++nretry_ > N_RETRY_ATTEMPTS)
         exit(1);
     reconnect();
