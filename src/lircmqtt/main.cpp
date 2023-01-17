@@ -47,10 +47,12 @@ namespace {
 int main(int argc, char* argv[])
 {
     if (argc < 1) {
-        cout << "Expected argument [configfile] is missing";
+        cerr << "Expected argument [configfile.json] is missing";
         return 1;
     }
 
+    cout << "Starting lirc-mqtt..."<< std::endl;
+    cout << "Loading configuration from " << argv[1] << std::endl;
     auto deviceStateManager = parseDeviceStates(argv[1]);
 
     auto mqttConsumer = std::make_shared<lm::MqttConsumer>(deviceStateManager);
