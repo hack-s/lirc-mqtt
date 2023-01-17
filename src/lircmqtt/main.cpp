@@ -57,6 +57,8 @@ int main(int argc, char* argv[])
 
     // register signal SIGABRT and signal handler
     signal(SIGABRT, signal_handler);
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
 
     shutdown_handler = [mqttConsumer] (int signal_num) {
         mqttConsumer->stop();
