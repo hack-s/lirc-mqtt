@@ -5,11 +5,12 @@
 #include "MqttConsumer.h"
 
 #include <utility>
-#include <json/json.h>
 
 #include <thread>
 #include <chrono>
 #include <lirc_client.h>
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
 
 void sendLircControl(const std::string& deviceName, const std::string& button)
 {
@@ -105,21 +106,27 @@ void lm::callback::connected(const std::string &cause) {
     std::vector<std::string> allDeviceNames = _deviceStateManager->getDeviceNames();
     for (const auto& deviceName : allDeviceNames) {
         std::cout << "Sending device discovery for IR device config: " << deviceName << std::endl;
-        Json::Value mqttDeviceInterview;
+        rapidjson::Document mqttDeviceInterview;
         if (_deviceStateManager->asMqttDescription(deviceName, mqttDeviceInterview)) {
-            Json::FastWriter fastWriter;
-            std::string discoveryJsonAsString = fastWriter.write(mqttDeviceInterview);
-            cli_.publish(_deviceStateManager->getProperties().discoveryTopic, discoveryJsonAsString);
+            rapidjson::StringBuffer buffer;
+            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+            mqttDeviceInterview.Accept(writer);
+
+            const char* output = buffer.GetString();
+            cli_.publish(_deviceStateManager->getProperties().discoveryTopic, output);
+
+            std::cout << "\nSubscribing to topic '" << "ir/#" << "'\n"
+                      << "\tfor client " << _deviceStateManager->getProperties().serviceName
+                      << " using QoS" << QOS << std::endl;
+
+            cli_.subscribe(_deviceStateManager->getProperties().deviceTopicPrefix + deviceName + "/set", QOS, nullptr, subListener_);
+
         } else {
             std::cerr << "Device config not found for IR device config: " << deviceName << std::endl;
         }
+
     }
 
-    std::cout << "\nSubscribing to topic '" << "ir/#" << "'\n"
-              << "\tfor client " << _deviceStateManager->getProperties().serviceName
-              << " using QoS" << QOS << std::endl;
-
-    cli_.subscribe("ir/#", QOS, nullptr, subListener_);
 }
 
 void lm::callback::connection_lost(const std::string &cause) {
@@ -137,15 +144,13 @@ void lm::callback::message_arrived(mqtt::const_message_ptr msg) {
     std::cout << "\ttopic: '" << msg->get_topic() << "'" << std::endl;
     std::cout << "\tpayload: '" << msg->to_string() << "'\n" << std::endl;
 
-    Json::Value messageJson;
-    Json::Reader r;
-    r.parse(msg->to_string(), messageJson);
+    std::string deviceName = msg->get_topic().substr(_deviceStateManager->getProperties().deviceTopicPrefix.length(), msg->get_topic().find_last_of('/'));
 
-    auto queueIt = messageQueue.find(messageJson["deviceName"].asString());
+    auto queueIt = messageQueue.find(deviceName);
     if (queueIt == messageQueue.end()) {
-        std::cout << "Error processing message, unknown device: " << messageJson["deviceName"] << std::endl;
+        std::cout << "Error processing message, unknown device: " << deviceName << std::endl;
     } else {
-        queueIt->second.first->push(messageJson);
+        queueIt->second.first->push(msg->to_string());
     }
 }
 
@@ -154,21 +159,24 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
     auto names = _deviceStateManager->getDeviceNames();
 
     for (const auto& deviceName : names) {
-        auto queue = std::make_shared<BlockingQueue<Json::Value>>();
+        auto queue = std::make_shared<BlockingQueue<std::string>>();
         auto lDeviceStateManager = _deviceStateManager;
 
         auto t = std::make_shared<std::thread>([lDeviceStateManager, deviceName, queue] {
 
-            Json::Value messageJson;
+            std::string message;
 
-            while (queue->pop(messageJson)) {
-                for (const auto & toggle : messageJson["toggles"]) {
+            while (queue->pop(message)) {
+                rapidjson::Document messageJson;
+                messageJson.Parse(message);
 
-                    std::string toggleName = toggle["deviceName"].asString();
-                    std::string value = toggle["value"].asString();
+                for (auto it = messageJson.MemberBegin(); it != messageJson.MemberEnd(); ++it) {
+
+                    std::string toggleName = it->name.GetString();
+                    std::string value = it->value.GetString();
 
                     std::string button;
-                    std::size_t  numInvokes;
+                    std::size_t numInvokes;
                     if (lDeviceStateManager->moveToState(deviceName, toggleName, value, button, numInvokes)) {
                         for (unsigned int i=0; i < numInvokes; i++) {
                             if (toggleName == "sleep") {
@@ -181,7 +189,6 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
                     }
                 }
             }
-
         });
 
         messageQueue.insert(std::make_pair(deviceName, std::make_pair(queue, t)));

@@ -11,9 +11,7 @@
 #include <memory>
 #include <mutex>
 
-namespace Json {
-    class Value;
-}
+#include "rapidjson/document.h"
 
 namespace lm {
 
@@ -38,6 +36,7 @@ namespace lm {
         std::string serviceName;
         std::string discoveryTopic;
         std::string mqttServer;
+        std::string deviceTopicPrefix;
     };
 
     class DeviceStateManager {
@@ -52,12 +51,12 @@ namespace lm {
     public:
         explicit DeviceStateManager(Properties properties);
 
-        void addDeviceState(const Json::Value& json);
+        void addDeviceState(const rapidjson::Value& json);
 
         bool moveToState(const std::string& deviceName, const std::string& toggleName, const std::string& value, std::string& rtnButton, std::size_t& rtnNumInvokes);
         bool setState(const std::string& deviceName, const std::string& toggleName, const std::string& value);
 
-        bool asMqttDescription(const std::string& deviceName, Json::Value& mqttDescription);
+        bool asMqttDescription(const std::string& deviceName, rapidjson::Document& mqttDescription);
 
         const Properties& getProperties() {
             return _properties;

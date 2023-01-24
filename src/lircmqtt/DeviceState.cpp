@@ -4,46 +4,44 @@
 
 #include "DeviceState.h"
 
-#include "json/json.h"
-
 #include <utility>
 #include <iostream>
 
 namespace lm {
-    void DeviceStateManager::addDeviceState(const Json::Value &json) {
+    void DeviceStateManager::addDeviceState(const rapidjson::Value &json) {
 
         DeviceState deviceState;
-        deviceState._name = json["deviceName"].asString();
+        deviceState._name = json["deviceName"].GetString();
 
         std::cout << "Adding device config for " << deviceState._name << std::endl;
 
-        if (json.isMember("buttons")) {
-            for (const auto & buttonValue : json["buttons"]) {
-                deviceState._buttons.push_back(buttonValue.asString());
+        if (json.HasMember("buttons")) {
+            for (const auto & buttonValue : json["buttons"].GetArray()) {
+                deviceState._buttons.emplace_back(buttonValue.GetString());
             }
         }
-        for (auto deviceToggleJson : json["toggles"]) {
+        for (const auto& deviceToggleJson : json["toggles"].GetArray()) {
             DeviceToggle deviceToggle;
 
-            deviceToggle._name = deviceToggleJson["name"].asString();
-            if (deviceToggleJson.isMember("buttonUp")) {
-                deviceToggle._button_up = deviceToggleJson["buttonUp"].asString();
+            deviceToggle._name = deviceToggleJson["name"].GetString();
+            if (deviceToggleJson.HasMember("buttonUp")) {
+                deviceToggle._button_up = deviceToggleJson["buttonUp"].GetString();
             }
-            if (deviceToggleJson.isMember("buttonDown")) {
-                deviceToggle._button_down = deviceToggleJson["buttonDown"].asString();
+            if (deviceToggleJson.HasMember("buttonDown")) {
+                deviceToggle._button_down = deviceToggleJson["buttonDown"].GetString();
             }
             
-            deviceToggle._type = deviceToggleJson["type"].asString();
+            deviceToggle._type = deviceToggleJson["type"].GetString();
 
-            if (deviceToggleJson.isMember("wrapAround")) {
-                deviceToggle._wrap_around = deviceToggleJson["wrapAround"].asBool();
+            if (deviceToggleJson.HasMember("wrapAround")) {
+                deviceToggle._wrap_around = deviceToggleJson["wrapAround"].GetBool();
             } else {
                 deviceToggle._wrap_around = false;
             }
             
-            if (deviceToggleJson.isMember("values")) {
-                for (const auto &j: deviceToggleJson["values"]) {
-                    deviceToggle._values.push_back(j.asString());
+            if (deviceToggleJson.HasMember("values")) {
+                for (const auto &j: deviceToggleJson["values"].GetArray()) {
+                    deviceToggle._values.emplace_back(j.GetString());
                 }
 
                 if (!deviceToggle._values.empty()) {
@@ -51,15 +49,15 @@ namespace lm {
                 }
             }
 
-            if (deviceToggleJson.isMember("valueButtonMappings")) {
+            if (deviceToggleJson.HasMember("valueButtonMappings")) {
                 std::string initValue;
-                auto valueButtonMappings = deviceToggleJson["valueButtonMappings"];
-                for (Json::ArrayIndex j=0; j < valueButtonMappings.size(); j++) {
-                    auto value = valueButtonMappings[j]["value"].asString();
+                auto valueButtonMappings = deviceToggleJson["valueButtonMappings"].GetArray();
+                for (size_t j=0; j < valueButtonMappings.Size(); j++) {
+                    auto value = valueButtonMappings[j]["value"].GetString();
                     if (j == 0) {
                         initValue = value;
                     }
-                    deviceToggle._valueToButtonMappings.insert(std::make_pair(valueButtonMappings[j]["button"].asString(), value));
+                    deviceToggle._valueToButtonMappings.insert(std::make_pair(valueButtonMappings[j]["button"].GetString(), value));
                 }
                 deviceToggle._state = initValue;
             }
@@ -169,7 +167,7 @@ namespace lm {
         return true;
     }
 
-    bool DeviceStateManager::asMqttDescription(const std::string& deviceName, Json::Value& mqttDescription) {
+    bool DeviceStateManager::asMqttDescription(const std::string& deviceName, rapidjson::Document& mqttDescription) {
         std::unique_lock<std::mutex> lock(ml);
 
         auto stateIt = _deviceStates.find(deviceName);
@@ -180,75 +178,76 @@ namespace lm {
 
         auto state = stateIt->second;
 
-        Json::Value definition;
-        definition["description"] = "IR interface for " + state._name;
-        definition["model"] = state._name;
-        definition["supports_ota"] = false;
-        definition["vendor"] = "IR";
+        std::string description = std::string("IR interface for "  + state._name);
 
-        definition["options"] = Json::Value(Json::arrayValue);
+        auto& allocator = mqttDescription.GetAllocator();
 
-        Json::Value exposes;
-        exposes["type"] = "ir";
-
-                Json::Value feature;
-                feature["access"] = 7;
-
+        rapidjson::Value features(rapidjson::kArrayType);
         for (const auto & _button : state._buttons) {
-            feature["description"] = "On/off switch " + _button;
-            feature["name"] = _button;
-            feature["property"] = _button;
-            feature["type"] = "binary";
-            feature["value_toggle"] = "TOGGLE";
+            rapidjson::Value feature(rapidjson::kObjectType);
+            feature.AddMember("access", 7, allocator);
+            feature.AddMember("description", "On/off switch " + _button, allocator);
+            feature.AddMember("name", _button, allocator);
+            feature.AddMember("property", _button, allocator);
+            feature.AddMember("type", "binary", allocator);
+            feature.AddMember("value_toggle", "TOGGLE", allocator);
+            features.GetArray().PushBack(feature, allocator);
         }
 
         for (const auto & _toggle : state._toggles) {
-            feature["description"] = "On/off state " + _toggle.second._name;
-            feature["name"] = _toggle.second._name;
-            feature["property"] = _toggle.second._name;
+            rapidjson::Value feature(rapidjson::kObjectType);
+            feature.AddMember("access", 7, allocator);
+            feature.AddMember("description", "On/off state " + _toggle.second._name, allocator);
+            feature.AddMember("name", _toggle.second._name, allocator);
+            feature.AddMember("property", _toggle.second._name, allocator);
             if ("range" == _toggle.second._type) {
-                feature["type"] = "numeric";
-                feature["value_min"] = std::stoi(_toggle.second._values[0]);
-                feature["value_max"] = std::stoi(_toggle.second._values[1]);
+                feature.AddMember("type", "numeric", allocator);
+                feature.AddMember("value_min", std::stoi(_toggle.second._values[0]), allocator);
+                feature.AddMember("value_max", std::stoi(_toggle.second._values[1]), allocator);
             }
             if ("switch" == _toggle.second._type) {
-                feature["type"] = "binary";
-                feature["value_off"] = "OFF";
-                feature["value_on"] = "ON";
+                feature.AddMember("type", "binary", allocator);
+                feature.AddMember("value_off", "OFF", allocator);
+                feature.AddMember("value_on", "ON", allocator);
                 //feature["value_toggle"] = "TOGGLE";
             }
             if ("enum" == _toggle.second._type) {
-                feature["type"] = "enum";
+                feature.AddMember("type", "enum", allocator);
 
-                Json::Value values(Json::arrayValue);
+                rapidjson::Value values(rapidjson::kArrayType);
 
                 for (const auto & _value : _toggle.second._values) {
-                    values.append(_value);
+                    values.GetArray().PushBack(rapidjson::Value(_value, allocator), allocator);
                 }
 
                 for (const auto & _value : _toggle.second._valueToButtonMappings) {
-                    values.append(_value.first);
+                    values.GetArray().PushBack(rapidjson::Value(_value.first, allocator), allocator);
                 }
 
-                feature["values"] = values;
+                feature.AddMember("values", values, allocator);
             }
+            features.GetArray().PushBack(feature, allocator);
         }
 
-        exposes["features"].append(feature);
+        rapidjson::Value exposes(rapidjson::kObjectType);
+        exposes.AddMember("type", "ir", allocator);
+        exposes.AddMember("features", features, allocator);
 
-        definition["exposes"].append(exposes);
+        rapidjson::Value definition(rapidjson::kObjectType);
+        definition.AddMember("description", description, allocator);
+        definition.AddMember("model", state._name, allocator);
+        definition.AddMember("supports_ota", false, allocator);
+        definition.AddMember("vendor", "IR", allocator);
 
-        Json::Value data;
+        definition.AddMember("options", rapidjson::Value(rapidjson::kArrayType), allocator);
+        definition.AddMember("exposes", exposes, allocator);
 
-        data["friendly_name"] = state._name;
-        data["ieee_address"] = "ir/" + _properties.serviceName + "/" + state._name;
-        data["status"] = "successful";
-        data["supported"] = true;
-        data["definition"] = definition;
-
-
-        (mqttDescription)["type"] = "device_interview";
-        (mqttDescription)["data"] = data;
+        mqttDescription.AddMember("friendly_name", state._name, allocator);
+        mqttDescription.AddMember("ieee_address", "ir/" + _properties.serviceName + "/" + state._name, allocator);
+        mqttDescription.AddMember("status", "successful", allocator);
+        mqttDescription.AddMember("supported", true, allocator);
+        mqttDescription.AddMember("definition",  definition, allocator);
+        mqttDescription.AddMember("type", "EndDevice", allocator);
 
         return true;
     }

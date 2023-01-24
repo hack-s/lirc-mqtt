@@ -8,10 +8,9 @@
 #include <iostream>
 #include <string>
 #include <thread>
-#include "json/json.h"
 #include "MqttConsumer.h"
-#include <fstream>
-
+#include "rapidjson/document.h"
+#include "rapidjson/filereadstream.h"
 #include <csignal>
 
 using namespace std;
@@ -21,18 +20,25 @@ using namespace std::chrono;
 
 std::shared_ptr<lm::DeviceStateManager> parseDeviceStates(const std::string& file) {
 
-    Json::Value root;
+    rapidjson::Document root;
 
-    std::ifstream f(file);
-    f >> root;
+    FILE* fp = fopen(file.c_str(), "rb"); // non-Windows use "r"
 
-    std::string ir_service_name = root["properties"]["irServiceName"].asString();
-    std::string discovery_topic = root["properties"]["discoveryTopic"].asString();
-    std::string mqtt_server = root["properties"]["mqttServer"].asString();
+    char readBuffer[65536];
+    rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
 
-    auto deviceStateManager = std::make_shared<lm::DeviceStateManager>(lm::Properties{ir_service_name, discovery_topic, mqtt_server});
+    root.ParseStream(is);
 
-    for (const auto& l : root["devices"]) {
+    fclose(fp);
+
+    std::string ir_service_name = root["properties"]["irServiceName"].GetString();
+    std::string discovery_topic = root["properties"]["discoveryTopic"].GetString();
+    std::string mqtt_server = root["properties"]["mqttServer"].GetString();
+    std::string device_topic_prefix = root["properties"]["deviceTopicPrefix"].GetString();
+
+    auto deviceStateManager = std::make_shared<lm::DeviceStateManager>(lm::Properties{ir_service_name, discovery_topic, mqtt_server, device_topic_prefix});
+
+    for (const auto& l : root["devices"].GetArray()) {
         deviceStateManager->addDeviceState(l);
     }
 

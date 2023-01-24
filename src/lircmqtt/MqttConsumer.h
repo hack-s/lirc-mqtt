@@ -7,6 +7,7 @@
 
 #include <string>
 #include <atomic>
+#include "rapidjson/document.h"
 #include "mqtt/async_client.h"
 #include "DeviceState.h"
 #include "BlockingQueue.h"
@@ -55,7 +56,7 @@ namespace lm {
         action_listener subListener_;
 
         std::shared_ptr<DeviceStateManager> _deviceStateManager;
-        std::map<std::string, std::pair<std::shared_ptr<BlockingQueue<Json::Value>>, std::shared_ptr<std::thread>>> messageQueue;
+        std::map<std::string, std::pair<std::shared_ptr<BlockingQueue<std::string>>, std::shared_ptr<std::thread>>> messageQueue;
 
         // This deomonstrates manually reconnecting to the broker by calling
         // connect() again. This is a possibility for an application that keeps

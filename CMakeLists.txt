@@ -3,6 +3,8 @@ project(lirc-mqtt CXX)
 SET(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+add_compile_definitions(RAPIDJSON_HAS_STDSTRING=1)
+
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules")
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
