@@ -160,7 +160,7 @@ void do_send_device_state(mqtt::async_client& cli, const std::shared_ptr<lm::Dev
     mqttDeviceState.Accept(writer);
     const char *output = buffer.GetString();
 
-    std::cout << "Sending device discovery message" << std::endl;
+    std::cout << "Sending device state update message for " << deviceName << std::endl;
     cli.publish(deviceStateManager->getProperties().deviceTopicPrefix + deviceName, output, 1, false);
 }
 
