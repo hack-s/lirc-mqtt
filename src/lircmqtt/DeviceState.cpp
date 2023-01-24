@@ -178,8 +178,6 @@ namespace lm {
 
         auto state = stateIt->second;
 
-        std::string description = std::string("IR interface for "  + state._name);
-
         auto& allocator = mqttDescription.GetAllocator();
 
         rapidjson::Value features(rapidjson::kArrayType);
@@ -234,7 +232,7 @@ namespace lm {
         exposes.AddMember("features", features, allocator);
 
         rapidjson::Value definition(rapidjson::kObjectType);
-        definition.AddMember("description", description, allocator);
+        definition.AddMember("description", "IR interface for " + state._name, allocator);
         definition.AddMember("model", state._name, allocator);
         definition.AddMember("supports_ota", false, allocator);
         definition.AddMember("vendor", "IR", allocator);

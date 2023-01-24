@@ -107,6 +107,7 @@ void lm::callback::connected(const std::string &cause) {
     for (const auto& deviceName : allDeviceNames) {
         std::cout << "Sending device discovery for IR device config: " << deviceName << std::endl;
         rapidjson::Document mqttDeviceInterview;
+        mqttDeviceInterview.SetObject();
         if (_deviceStateManager->asMqttDescription(deviceName, mqttDeviceInterview)) {
             rapidjson::StringBuffer buffer;
             rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
