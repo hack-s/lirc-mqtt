@@ -147,7 +147,11 @@ void lm::callback::message_arrived(mqtt::const_message_ptr msg) {
     std::cout << "\ttopic: '" << msg->get_topic() << "'" << std::endl;
     std::cout << "\tpayload: '" << msg->to_string() << "'\n" << std::endl;
 
-    std::string deviceName = msg->get_topic().substr(_deviceStateManager->getProperties().deviceTopicPrefix.length(), msg->get_topic().find_last_of('/'));
+    std::string deviceName = msg->get_topic().substr(_deviceStateManager->getProperties().deviceTopicPrefix.length());
+    auto lastSlash = deviceName.find_last_of('/');
+    if (lastSlash != std::string::npos) {
+        deviceName = deviceName.substr(0, lastSlash);
+    }
 
     auto queueIt = messageQueue.find(deviceName);
     if (queueIt == messageQueue.end()) {
