@@ -20,8 +20,8 @@ namespace lm {
         std::string _state;
         std::string _type;
         std::vector<std::string> _values;
-        std::string _button_up;
-        std::string _button_down;
+        std::string _button_forward;
+        std::string _button_backwards;
         bool _wrap_around;
         std::map<std::string, std::string> _valueToButtonMappings;
     };
@@ -46,15 +46,15 @@ namespace lm {
         Properties _properties;
         std::map<std::string, DeviceState> _deviceStates;
 
-        bool moveToStateUpDown(const std::string& value, DeviceToggle &toggleIt, std::string &rtnButton, size_t &rtnNumInvoke) const;
-        bool moveToSButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, size_t &rtnNumInvoke) const;
+        bool moveToStateUpDown(const std::string& value, DeviceToggle &toggleIt, std::string &rtnButton, int &rtnNumInvoke) const;
+        bool moveToSButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, int &rtnNumInvoke) const;
 
     public:
         explicit DeviceStateManager(Properties properties);
 
         void addDeviceState(const rapidjson::Value& json);
 
-        bool moveToState(const std::string& deviceName, const std::string& toggleName, const std::string& value, std::string& rtnButton, std::size_t& rtnNumInvokes);
+        bool moveToState(const std::string& deviceName, const std::string& toggleName, const std::string& value, std::string& rtnButton, int& rtnNumInvokes);
         bool setState(const std::string& deviceName, const std::string& toggleName, const std::string& value);
 
         bool asMqttDescription(const std::string& deviceName, rapidjson::Document& mqttDescription);

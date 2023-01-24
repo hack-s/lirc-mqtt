@@ -24,11 +24,11 @@ namespace lm {
             DeviceToggle deviceToggle;
 
             deviceToggle._name = deviceToggleJson["name"].GetString();
-            if (deviceToggleJson.HasMember("buttonUp")) {
-                deviceToggle._button_up = deviceToggleJson["buttonUp"].GetString();
+            if (deviceToggleJson.HasMember("buttonForward")) {
+                deviceToggle._button_forward = deviceToggleJson["buttonForward"].GetString();
             }
-            if (deviceToggleJson.HasMember("buttonDown")) {
-                deviceToggle._button_down = deviceToggleJson["buttonDown"].GetString();
+            if (deviceToggleJson.HasMember("buttonBackwards")) {
+                deviceToggle._button_backwards = deviceToggleJson["buttonBackwards"].GetString();
             }
             
             deviceToggle._type = deviceToggleJson["type"].GetString();
@@ -69,7 +69,7 @@ namespace lm {
     }
 
 
-    bool DeviceStateManager::moveToState(const std::string &deviceName, const std::string& toggleName, const std::string &value, std::string& rtnButton, std::size_t& rtnNumInvoke) {
+    bool DeviceStateManager::moveToState(const std::string &deviceName, const std::string& toggleName, const std::string &value, std::string& rtnButton, int& rtnNumInvoke) {
 
         std::unique_lock<std::mutex> lock(ml);
 
@@ -85,16 +85,16 @@ namespace lm {
             return false;
         }
 
-        if (!toggleIt->second._button_up.empty() || !toggleIt->second._button_down.empty()) {
-            return moveToStateUpDown(value, toggleIt->second, rtnButton, rtnNumInvoke);
-        } else if (!toggleIt->second._valueToButtonMappings.empty()) {
+        if (!toggleIt->second._valueToButtonMappings.empty()) {
             return moveToSButtonValueMapping(value, toggleIt->second, rtnButton, rtnNumInvoke);
+        } else if (!toggleIt->second._button_forward.empty() || !toggleIt->second._button_backwards.empty()) {
+            return moveToStateUpDown(value, toggleIt->second, rtnButton, rtnNumInvoke);
         } else {
             return false;
         }
     }
 
-    bool DeviceStateManager::moveToSButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, size_t &rtnNumInvoke) const {
+    bool DeviceStateManager::moveToSButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, int &rtnNumInvoke) const {
         auto mapping = toggle._valueToButtonMappings.find(value);
         if (mapping == toggle._valueToButtonMappings.end()) {
             return false;
@@ -105,7 +105,7 @@ namespace lm {
         return true;
     }
     
-    bool DeviceStateManager::moveToStateUpDown(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, size_t &rtnNumInvoke) const {
+    bool DeviceStateManager::moveToStateUpDown(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, int &rtnNumInvoke) const {
         
         if (toggle._state == value) {
             rtnNumInvoke = 0;
@@ -114,6 +114,7 @@ namespace lm {
 
         int currentValue = 0;
         int targetIndex = 0;
+        bool isAssigned = false;
 
         for (int i=0; i < toggle._values.size(); i++) {
             if (toggle._state == toggle._values.at(i)) {
@@ -126,24 +127,27 @@ namespace lm {
         }
 
         if (targetIndex > currentValue) {
-            rtnButton = toggle._button_up;
-            rtnNumInvoke = currentValue - targetIndex;
-        } else {
-            rtnButton = toggle._button_down;
+            rtnButton = toggle._button_forward;
             rtnNumInvoke = targetIndex - currentValue;
+            isAssigned = !rtnButton.empty();
+        } else {
+            rtnButton = toggle._button_backwards;
+            rtnNumInvoke = currentValue - targetIndex;
+            isAssigned = !rtnButton.empty();
         }
 
         if (toggle._wrap_around && rtnButton.empty()) {
             if (targetIndex > currentValue) {
-                rtnButton = toggle._button_down;
+                rtnButton = toggle._button_backwards;
                 //rtnNumInvoke = currentValue + (deviceIt->second._values.size() - targetIndex);
             } else {
-                rtnButton = toggle._button_up;
+                rtnButton = toggle._button_forward;
             }
             rtnNumInvoke = toggle._values.size() - currentValue + targetIndex;
+            isAssigned = true;
         }
 
-        return true;
+        return isAssigned;
     }
 
     bool DeviceStateManager::setState(const std::string &deviceName, const std::string &toggleName, const std::string &value) {

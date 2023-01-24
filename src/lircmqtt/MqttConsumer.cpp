@@ -23,7 +23,10 @@ void sendLircControl(const std::string& lircdSocketPath, const std::string& devi
     }
     if (lirc_send_one(fd, deviceName.c_str(), button.c_str()) == -1) {
         std::cout << "Error sending Lirc control" << std::endl;
-    };
+    } else {
+        std::cout << "Lirc control was sent successfully" << std::endl;
+    }
+    close(fd);
 }
 
 
@@ -183,10 +186,10 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
                     std::string value = it->value.GetString();
 
                     std::string button;
-                    std::size_t numInvokes;
+                    int numInvokes;
                     if (lDeviceStateManager->moveToState(deviceName, toggleName, value, button, numInvokes)) {
                         std::cout << "Invoking IR control for " << deviceName << " with button " << button << ": " << numInvokes << " times" << std::endl;
-                        for (unsigned int i=0; i < numInvokes; i++) {
+                        for (int i=0; i < numInvokes; i++) {
                             if (toggleName == "sleep") {
                                 std::this_thread::sleep_for(std::chrono::milliseconds(std::stoi(value)));
                             } else {
@@ -194,6 +197,8 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
                             }
                         }
                         lDeviceStateManager->setState(deviceName, toggleName, value);
+                    } else {
+                        std::cout << "WARN could not determine requires buttons to press to enter state for device: " << deviceName << ", toggle: " << toggleName << ", value: " << std::endl;
                     }
                 }
             }
