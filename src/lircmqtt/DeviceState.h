@@ -37,6 +37,7 @@ namespace lm {
         std::string discoveryTopic;
         std::string mqttServer;
         std::string deviceTopicPrefix;
+        std::string lircdSocketPath;
     };
 
     class DeviceStateManager {

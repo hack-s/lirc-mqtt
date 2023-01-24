@@ -35,8 +35,12 @@ std::shared_ptr<lm::DeviceStateManager> parseDeviceStates(const std::string& fil
     std::string discovery_topic = root["properties"]["discoveryTopic"].GetString();
     std::string mqtt_server = root["properties"]["mqttServer"].GetString();
     std::string device_topic_prefix = root["properties"]["deviceTopicPrefix"].GetString();
+    std::string lircd_socket_path = "/var/run/lirc/lircd";
+    if (root["properties"].HasMember("lircdSocketPath")) {
+        lircd_socket_path = root["properties"]["lircdSocketPath"].GetString();
+    }
 
-    auto deviceStateManager = std::make_shared<lm::DeviceStateManager>(lm::Properties{ir_service_name, discovery_topic, mqtt_server, device_topic_prefix});
+    auto deviceStateManager = std::make_shared<lm::DeviceStateManager>(lm::Properties{ir_service_name, discovery_topic, mqtt_server, device_topic_prefix, lircd_socket_path});
 
     for (const auto& l : root["devices"].GetArray()) {
         deviceStateManager->addDeviceState(l);

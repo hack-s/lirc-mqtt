@@ -12,11 +12,11 @@
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 
-void sendLircControl(const std::string& deviceName, const std::string& button)
+void sendLircControl(const std::string& lircdSocketPath, const std::string& deviceName, const std::string& button)
 {
     int fd;
 
-    fd = lirc_get_local_socket(NULL, 0);
+    fd = lirc_get_local_socket(lircdSocketPath.c_str(), 0);
     if (fd < 0) {
         std::cout << "Error initializing Lirc" << std::endl;
         return;
@@ -185,11 +185,12 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
                     std::string button;
                     std::size_t numInvokes;
                     if (lDeviceStateManager->moveToState(deviceName, toggleName, value, button, numInvokes)) {
+                        std::cout << "Invoking IR control for " << deviceName << " with button " << button << ": " << numInvokes << " times" << std::endl;
                         for (unsigned int i=0; i < numInvokes; i++) {
                             if (toggleName == "sleep") {
                                 std::this_thread::sleep_for(std::chrono::milliseconds(std::stoi(value)));
                             } else {
-                                sendLircControl(deviceName, button);
+                                sendLircControl(lDeviceStateManager->getProperties().lircdSocketPath, deviceName, button);
                             }
                         }
                         lDeviceStateManager->setState(deviceName, toggleName, value);
