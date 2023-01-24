@@ -116,11 +116,13 @@ void lm::callback::connected(const std::string &cause) {
             const char* output = buffer.GetString();
             cli_.publish(_deviceStateManager->getProperties().discoveryTopic, output);
 
-            std::cout << "\nSubscribing to topic '" << "ir/#" << "'\n"
+            std::string deviceTopicName = _deviceStateManager->getProperties().deviceTopicPrefix + deviceName + "/set";
+
+            std::cout << "\nSubscribing to topic '" << deviceTopicName << "'\n"
                       << "\tfor client " << _deviceStateManager->getProperties().serviceName
                       << " using QoS" << QOS << std::endl;
 
-            cli_.subscribe(_deviceStateManager->getProperties().deviceTopicPrefix + deviceName + "/set", QOS, nullptr, subListener_);
+            cli_.subscribe(deviceTopicName, QOS, nullptr, subListener_);
 
         } else {
             std::cerr << "Device config not found for IR device config: " << deviceName << std::endl;

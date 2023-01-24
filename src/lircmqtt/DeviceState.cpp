@@ -227,9 +227,9 @@ namespace lm {
             features.GetArray().PushBack(feature, allocator);
         }
 
-        rapidjson::Value exposes(rapidjson::kObjectType);
-        exposes.AddMember("type", "ir", allocator);
-        exposes.AddMember("features", features, allocator);
+        rapidjson::Value exposedFeature(rapidjson::kObjectType);
+        exposedFeature.AddMember("type", "ir", allocator);
+        exposedFeature.AddMember("features", features, allocator);
 
         rapidjson::Value definition(rapidjson::kObjectType);
         definition.AddMember("description", "IR interface for " + state._name, allocator);
@@ -238,6 +238,9 @@ namespace lm {
         definition.AddMember("vendor", "IR", allocator);
 
         definition.AddMember("options", rapidjson::Value(rapidjson::kArrayType), allocator);
+
+        rapidjson::Value exposes(rapidjson::kArrayType);
+        exposes.GetArray().PushBack(exposedFeature, allocator);
         definition.AddMember("exposes", exposes, allocator);
 
         mqttDescription.AddMember("friendly_name", state._name, allocator);
