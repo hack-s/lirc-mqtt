@@ -85,6 +85,10 @@ namespace lm {
 
         void delivery_complete(mqtt::delivery_token_ptr token) override {}
 
+        void sendDeviceDiscovery(const std::vector<std::string>& allDeviceNames);
+        void sendDeviceState(const std::string& deviceName);
+        void subscribeDeviceUpdates(const std::string& deviceName);
+
     public:
         callback(mqtt::async_client &cli, mqtt::connect_options &connOpts, const std::shared_ptr<DeviceStateManager>& deviceStateManager);
         ~callback() override;

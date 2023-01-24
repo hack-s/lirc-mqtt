@@ -171,7 +171,26 @@ namespace lm {
         return true;
     }
 
-    bool DeviceStateManager::asMqttDescription(const std::string& deviceName, rapidjson::Document& mqttDescription) {
+    bool DeviceStateManager::asStateDescription(const std::string &deviceName, rapidjson::Document &mqttDescription, rapidjson::Value& root) {
+        std::unique_lock<std::mutex> lock(ml);
+
+        auto stateIt = _deviceStates.find(deviceName);
+
+        if (stateIt == _deviceStates.end()) {
+            return false;
+        }
+
+        if (stateIt->second._toggles.empty()) {
+            return false;
+        }
+
+        for (const auto& toggle : stateIt->second._toggles) {
+            root.AddMember(rapidjson::StringRef(toggle.second._name), toggle.second._state, mqttDescription.GetAllocator());
+        }
+        return true;
+    }
+
+    bool DeviceStateManager::asMqttDescription(const std::string& deviceName, rapidjson::Document& mqttDescription, rapidjson::Value& root) {
         std::unique_lock<std::mutex> lock(ml);
 
         auto stateIt = _deviceStates.find(deviceName);
@@ -247,12 +266,12 @@ namespace lm {
         exposes.GetArray().PushBack(exposedFeature, allocator);
         definition.AddMember("exposes", exposes, allocator);
 
-        mqttDescription.AddMember("friendly_name", state._name, allocator);
-        mqttDescription.AddMember("ieee_address", "ir/" + _properties.serviceName + "/" + state._name, allocator);
-        mqttDescription.AddMember("status", "successful", allocator);
-        mqttDescription.AddMember("supported", true, allocator);
-        mqttDescription.AddMember("definition",  definition, allocator);
-        mqttDescription.AddMember("type", "EndDevice", allocator);
+        root.AddMember("friendly_name", state._name, allocator);
+        root.AddMember("ieee_address", "ir/" + _properties.serviceName + "/" + state._name, allocator);
+        root.AddMember("status", "successful", allocator);
+        root.AddMember("supported", true, allocator);
+        root.AddMember("definition",  definition, allocator);
+        root.AddMember("type", "EndDevice", allocator);
 
         return true;
     }

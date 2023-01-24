@@ -107,32 +107,16 @@ void lm::callback::connected(const std::string &cause) {
     std::cout << "\nConnection success" << std::endl;
 
     std::vector<std::string> allDeviceNames = _deviceStateManager->getDeviceNames();
-    for (const auto& deviceName : allDeviceNames) {
-        std::cout << "Sending device discovery for IR device config: " << deviceName << std::endl;
-        rapidjson::Document mqttDeviceInterview;
-        mqttDeviceInterview.SetObject();
-        if (_deviceStateManager->asMqttDescription(deviceName, mqttDeviceInterview)) {
-            rapidjson::StringBuffer buffer;
-            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-            mqttDeviceInterview.Accept(writer);
 
-            const char* output = buffer.GetString();
-            cli_.publish(_deviceStateManager->getProperties().discoveryTopic, output);
-
-            std::string deviceTopicName = _deviceStateManager->getProperties().deviceTopicPrefix + deviceName + "/set";
-
-            std::cout << "\nSubscribing to topic '" << deviceTopicName << "'\n"
-                      << "\tfor client " << _deviceStateManager->getProperties().serviceName
-                      << " using QoS" << QOS << std::endl;
-
-            cli_.subscribe(deviceTopicName, QOS, nullptr, subListener_);
-
-        } else {
-            std::cerr << "Device config not found for IR device config: " << deviceName << std::endl;
-        }
-
+    for (const auto &deviceName: allDeviceNames) {
+        subscribeDeviceUpdates(deviceName);
     }
 
+    sendDeviceDiscovery(allDeviceNames);
+
+    for (const auto &deviceName: allDeviceNames) {
+        sendDeviceState(deviceName);
+    }
 }
 
 void lm::callback::connection_lost(const std::string &cause) {
@@ -164,6 +148,23 @@ void lm::callback::message_arrived(mqtt::const_message_ptr msg) {
     }
 }
 
+void do_send_device_state(mqtt::async_client& cli, const std::shared_ptr<lm::DeviceStateManager>& deviceStateManager, const std::string &deviceName) {
+    std::cout << "Sending initial device state for IR device config: " << deviceName << std::endl;
+
+    rapidjson::Document mqttDeviceState;
+    mqttDeviceState.SetObject();
+    deviceStateManager->asStateDescription(deviceName, mqttDeviceState, mqttDeviceState);
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    mqttDeviceState.Accept(writer);
+    const char *output = buffer.GetString();
+
+    std::cout << "Sending device discovery message" << std::endl;
+    cli.publish(deviceStateManager->getProperties().deviceTopicPrefix + deviceName, output, 1, false);
+}
+
+
 lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts, const std::shared_ptr<DeviceStateManager>& deviceStateManager)
         : nretry_(0), cli_(cli), connOpts_(connOpts), subListener_("Subscription"), _deviceStateManager(deviceStateManager) {
     auto names = _deviceStateManager->getDeviceNames();
@@ -172,7 +173,7 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
         auto queue = std::make_shared<BlockingQueue<std::string>>();
         auto lDeviceStateManager = _deviceStateManager;
 
-        auto t = std::make_shared<std::thread>([lDeviceStateManager, deviceName, queue] {
+        auto t = std::make_shared<std::thread>([lDeviceStateManager, deviceName, queue, this] {
 
             std::string message;
 
@@ -180,6 +181,7 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
                 rapidjson::Document messageJson;
                 messageJson.Parse(message);
 
+                bool wasUpdated = false;
                 for (auto it = messageJson.MemberBegin(); it != messageJson.MemberEnd(); ++it) {
 
                     std::string toggleName = it->name.GetString();
@@ -197,9 +199,13 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
                             }
                         }
                         lDeviceStateManager->setState(deviceName, toggleName, value);
+                        wasUpdated = numInvokes > 0;
                     } else {
                         std::cout << "WARN could not determine requires buttons to press to enter state for device: " << deviceName << ", toggle: " << toggleName << ", value: " << std::endl;
                     }
+                }
+                if (wasUpdated) {
+                    do_send_device_state(cli_, lDeviceStateManager, deviceName);
                 }
             }
         });
@@ -234,4 +240,46 @@ void lm::action_listener::on_success(const mqtt::token &tok) {
     if (top && !top->empty())
         std::cout << "\ttoken topic: '" << (*top)[0] << "', ..." << std::endl;
     std::cout << std::endl;
+}
+
+
+void lm::callback::subscribeDeviceUpdates(const std::string& deviceName) {
+
+    std::string deviceTopicName = _deviceStateManager->getProperties().deviceTopicPrefix + deviceName + "/set";
+
+    std::cout << "\nSubscribing to topic '" << deviceTopicName << "'\n"
+              << "\tfor client " << _deviceStateManager->getProperties().serviceName
+              << " using QoS" << QOS << std::endl;
+
+    cli_.subscribe(deviceTopicName, QOS, nullptr, subListener_);
+}
+
+void lm::callback::sendDeviceDiscovery(const std::vector<std::string> &allDeviceNames) {
+    rapidjson::Document mqttDeviceInterviews;
+    mqttDeviceInterviews.SetArray();
+
+    for (const auto& deviceName : allDeviceNames) {
+        std::cout << "Generating device discovery for IR device config: " << deviceName << std::endl;
+
+        rapidjson::Value mqttDeviceInterview(rapidjson::kObjectType);
+        if (_deviceStateManager->asMqttDescription(deviceName, mqttDeviceInterviews, mqttDeviceInterview)) {
+
+            mqttDeviceInterviews.GetArray().PushBack(mqttDeviceInterview, mqttDeviceInterviews.GetAllocator());
+
+        } else {
+            std::cerr << "Device config not found for IR device config: " << deviceName << std::endl;
+        }
+    }
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    mqttDeviceInterviews.Accept(writer);
+    const char* output = buffer.GetString();
+
+    std::cout << "Sending device discovery message" << std::endl;
+    cli_.publish(_deviceStateManager->getProperties().discoveryTopic, output, QOS, true);
+}
+
+void lm::callback::sendDeviceState(const std::string &deviceName) {
+    do_send_device_state(cli_, _deviceStateManager, deviceName);
 }

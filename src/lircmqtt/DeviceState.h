@@ -57,7 +57,9 @@ namespace lm {
         bool moveToState(const std::string& deviceName, const std::string& toggleName, const std::string& value, std::string& rtnButton, int& rtnNumInvokes);
         bool setState(const std::string& deviceName, const std::string& toggleName, const std::string& value);
 
-        bool asMqttDescription(const std::string& deviceName, rapidjson::Document& mqttDescription);
+        bool asMqttDescription(const std::string& deviceName, rapidjson::Document& mqttDescription, rapidjson::Value& root);
+
+        bool asStateDescription(const std::string& deviceName, rapidjson::Document& mqttDescription, rapidjson::Value& root);
 
         const Properties& getProperties() {
             return _properties;
