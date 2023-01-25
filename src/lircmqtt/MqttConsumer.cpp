@@ -149,7 +149,6 @@ void lm::callback::message_arrived(mqtt::const_message_ptr msg) {
 }
 
 void do_send_device_state(mqtt::async_client& cli, const std::shared_ptr<lm::DeviceStateManager>& deviceStateManager, const std::string &deviceName) {
-    std::cout << "Sending initial device state for IR device config: " << deviceName << std::endl;
 
     rapidjson::Document mqttDeviceState;
     mqttDeviceState.SetObject();

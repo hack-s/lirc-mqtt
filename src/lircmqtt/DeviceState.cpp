@@ -22,8 +22,8 @@ namespace lm {
             }
         }
 
-        if (json.HasMember("_controlIntervalMs")) {
-            deviceState._controlIntervalMs = json["_controlIntervalMs"].GetInt64();
+        if (json.HasMember("controlIntervalMs")) {
+            deviceState._controlIntervalMs = json["controlIntervalMs"].GetInt64();
         } else {
             deviceState._controlIntervalMs = 0;
         }
