@@ -189,7 +189,8 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
 
                     std::string button;
                     int numInvokes;
-                    if (lDeviceStateManager->moveToState(deviceName, toggleName, value, button, numInvokes)) {
+                    bool resetState = false;
+                    if (lDeviceStateManager->moveToState(deviceName, toggleName, value, button, numInvokes, resetState)) {
                         std::cout << "Invoking IR control for " << deviceName << " with button " << button << ": " << numInvokes << " times" << std::endl;
                         for (int i=0; i < numInvokes; i++) {
                             if (toggleName == "sleep") {
@@ -198,8 +199,11 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
                                 sendLircControl(lDeviceStateManager->getProperties().lircdSocketPath, deviceName, button);
                             }
                         }
+                        wasUpdated = resetState || numInvokes > 0;
+                        if (resetState) {
+                            lDeviceStateManager->resetDeviceState(deviceName);
+                        }
                         lDeviceStateManager->setState(deviceName, toggleName, value);
-                        wasUpdated = numInvokes > 0;
                     } else {
                         std::cout << "WARN could not determine requires buttons to press to enter state for device: " << deviceName << ", toggle: " << toggleName << ", value: " << std::endl;
                     }

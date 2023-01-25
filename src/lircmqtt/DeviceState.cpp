@@ -6,6 +6,7 @@
 
 #include <utility>
 #include <iostream>
+#include <algorithm>
 
 namespace lm {
     void DeviceStateManager::addDeviceState(const rapidjson::Value &json) {
@@ -38,6 +39,12 @@ namespace lm {
             } else {
                 deviceToggle._wrap_around = false;
             }
+
+            if (deviceToggleJson.HasMember("resetsStateOn")) {
+                for (const auto& resetState : deviceToggleJson["resetsStateOn"].GetArray()) {
+                    deviceToggle._reset_state_on.emplace_back(resetState.GetString());
+                }
+            }
             
             if (deviceToggleJson.HasMember("values")) {
                 for (const auto &j: deviceToggleJson["values"].GetArray()) {
@@ -45,7 +52,8 @@ namespace lm {
                 }
 
                 if (!deviceToggle._values.empty()) {
-                    deviceToggle._state = deviceToggle._values[0];
+                    deviceToggle._initialState = deviceToggle._values[0];
+                    deviceToggle._state = deviceToggle._initialState;
                 }
             }
 
@@ -59,7 +67,8 @@ namespace lm {
                     }
                     deviceToggle._valueToButtonMappings.insert(std::make_pair(valueButtonMappings[j]["button"].GetString(), value));
                 }
-                deviceToggle._state = initValue;
+                deviceToggle._initialState = initValue;
+                deviceToggle._state = deviceToggle._initialState;
             }
             
             deviceState._toggles.insert(std::make_pair(deviceToggle._name, deviceToggle));
@@ -69,7 +78,7 @@ namespace lm {
     }
 
 
-    bool DeviceStateManager::moveToState(const std::string &deviceName, const std::string& toggleName, const std::string &value, std::string& rtnButton, int& rtnNumInvoke) {
+    bool DeviceStateManager::moveToState(const std::string &deviceName, const std::string& toggleName, const std::string &value, std::string& rtnButton, int& rtnNumInvoke, bool& rtnResetState) {
 
         std::unique_lock<std::mutex> lock(ml);
 
@@ -84,6 +93,8 @@ namespace lm {
         if (toggleIt == deviceIt->second._toggles.end()) {
             return false;
         }
+
+        rtnResetState = std::find(toggleIt->second._reset_state_on.begin(), toggleIt->second._reset_state_on.end(), value) != toggleIt->second._reset_state_on.end();
 
         if (!toggleIt->second._valueToButtonMappings.empty()) {
             return moveToSButtonValueMapping(value, toggleIt->second, rtnButton, rtnNumInvoke);
@@ -167,6 +178,23 @@ namespace lm {
         }
 
         toggleIt->second._state = value;
+
+        return true;
+    }
+
+    bool DeviceStateManager::resetDeviceState(const std::string& deviceName) {
+
+        std::unique_lock<std::mutex> lock(ml);
+
+        auto deviceIt = _deviceStates.find(deviceName);
+
+        if (deviceIt == _deviceStates.end()) {
+            return false;
+        }
+
+        for (auto& deviceState : deviceIt->second._toggles) {
+            deviceState.second._state = deviceState.second._initialState;
+        }
 
         return true;
     }

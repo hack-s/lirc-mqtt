@@ -17,6 +17,7 @@ namespace lm {
 
     struct DeviceToggle {
         std::string _name;
+        std::string _initialState;
         std::string _state;
         std::string _type;
         std::vector<std::string> _values;
@@ -24,6 +25,7 @@ namespace lm {
         std::string _button_backwards;
         bool _wrap_around;
         std::map<std::string, std::string> _valueToButtonMappings;
+        std::vector<std::string> _reset_state_on;
     };
 
     struct DeviceState {
@@ -54,8 +56,9 @@ namespace lm {
 
         void addDeviceState(const rapidjson::Value& json);
 
-        bool moveToState(const std::string& deviceName, const std::string& toggleName, const std::string& value, std::string& rtnButton, int& rtnNumInvokes);
+        bool moveToState(const std::string& deviceName, const std::string& toggleName, const std::string& value, std::string& rtnButton, int& rtnNumInvokes, bool& rtnResetState);
         bool setState(const std::string& deviceName, const std::string& toggleName, const std::string& value);
+        bool resetDeviceState(const std::string& deviceName);
 
         bool asMqttDescription(const std::string& deviceName, rapidjson::Document& mqttDescription, rapidjson::Value& root);
 
