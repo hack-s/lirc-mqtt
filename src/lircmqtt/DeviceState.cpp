@@ -21,6 +21,13 @@ namespace lm {
                 deviceState._buttons.emplace_back(buttonValue.GetString());
             }
         }
+
+        if (json.HasMember("_controlIntervalMs")) {
+            deviceState._controlIntervalMs = json["_controlIntervalMs"].GetInt64();
+        } else {
+            deviceState._controlIntervalMs = 0;
+        }
+
         for (const auto& deviceToggleJson : json["toggles"].GetArray()) {
             DeviceToggle deviceToggle;
 
@@ -78,7 +85,7 @@ namespace lm {
     }
 
 
-    bool DeviceStateManager::moveToState(const std::string &deviceName, const std::string& toggleName, const std::string &value, std::string& rtnButton, int& rtnNumInvoke, bool& rtnResetState) {
+    bool DeviceStateManager::moveToState(const std::string &deviceName, const std::string& toggleName, const std::string &value, std::string& rtnButton, int& rtnNumInvoke, bool& rtnResetState, long& rtnControlIntervalMs) {
 
         std::unique_lock<std::mutex> lock(ml);
 
@@ -95,6 +102,7 @@ namespace lm {
         }
 
         rtnResetState = std::find(toggleIt->second._reset_state_on.begin(), toggleIt->second._reset_state_on.end(), value) != toggleIt->second._reset_state_on.end();
+        rtnControlIntervalMs = deviceIt->second._controlIntervalMs;
 
         if (!toggleIt->second._valueToButtonMappings.empty()) {
             return moveToSButtonValueMapping(value, toggleIt->second, rtnButton, rtnNumInvoke);

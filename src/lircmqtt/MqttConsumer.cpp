@@ -177,6 +177,8 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
 
             std::string message;
 
+            std::chrono::milliseconds lastSentTime = std::chrono::milliseconds::min();
+
             while (queue->pop(message)) {
                 rapidjson::Document messageJson;
                 messageJson.Parse(message);
@@ -190,13 +192,28 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
                     std::string button;
                     int numInvokes;
                     bool resetState = false;
-                    if (lDeviceStateManager->moveToState(deviceName, toggleName, value, button, numInvokes, resetState)) {
+                    long controlIntervalMs = 0;
+
+                    if (lDeviceStateManager->moveToState(deviceName, toggleName, value, button, numInvokes, resetState, controlIntervalMs)) {
                         std::cout << "Invoking IR control for " << deviceName << " with button " << button << ": " << numInvokes << " times" << std::endl;
                         for (int i=0; i < numInvokes; i++) {
                             if (toggleName == "sleep") {
                                 std::this_thread::sleep_for(std::chrono::milliseconds(std::stoi(value)));
                             } else {
+                                if (controlIntervalMs > 0) {
+                                    auto now = std::chrono::duration_cast< std::chrono::milliseconds >(
+                                            std::chrono::system_clock::now().time_since_epoch()
+                                    );
+                                    std::chrono::milliseconds ms = std::chrono::milliseconds(controlIntervalMs);
+                                    std::chrono::milliseconds nextSentTime = lastSentTime + ms;
+                                    if (nextSentTime > now) {
+                                        std::this_thread::sleep_for(nextSentTime - now);
+                                    }
+                                }
                                 sendLircControl(lDeviceStateManager->getProperties().lircdSocketPath, deviceName, button);
+                                lastSentTime = std::chrono::duration_cast< std::chrono::milliseconds >(
+                                        std::chrono::system_clock::now().time_since_epoch()
+                                );
                             }
                         }
                         wasUpdated = resetState || numInvokes > 0;

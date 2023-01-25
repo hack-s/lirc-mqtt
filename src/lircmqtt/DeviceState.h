@@ -32,6 +32,7 @@ namespace lm {
         std::string _name;
         std::map<std::string, DeviceToggle> _toggles;
         std::vector<std::string> _buttons;
+        long _controlIntervalMs;
     };
 
     struct Properties {
@@ -56,7 +57,7 @@ namespace lm {
 
         void addDeviceState(const rapidjson::Value& json);
 
-        bool moveToState(const std::string& deviceName, const std::string& toggleName, const std::string& value, std::string& rtnButton, int& rtnNumInvokes, bool& rtnResetState);
+        bool moveToState(const std::string& deviceName, const std::string& toggleName, const std::string& value, std::string& rtnButton, int& rtnNumInvokes, bool& rtnResetState, long& rtnControlIntervalMs);
         bool setState(const std::string& deviceName, const std::string& toggleName, const std::string& value);
         bool resetDeviceState(const std::string& deviceName);
 
