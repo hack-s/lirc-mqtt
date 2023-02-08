@@ -105,7 +105,7 @@ namespace lm {
         rtnControlIntervalMs = deviceIt->second._controlIntervalMs;
 
         if (!toggleIt->second._valueToButtonMappings.empty()) {
-            return moveToSButtonValueMapping(value, toggleIt->second, rtnButton, rtnNumInvoke);
+            return moveToButtonValueMapping(value, toggleIt->second, rtnButton, rtnNumInvoke);
         } else if (!toggleIt->second._button_forward.empty() || !toggleIt->second._button_backwards.empty()) {
             return moveToStateUpDown(value, toggleIt->second, rtnButton, rtnNumInvoke);
         } else {
@@ -113,7 +113,7 @@ namespace lm {
         }
     }
 
-    bool DeviceStateManager::moveToSButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, int &rtnNumInvoke) const {
+    bool DeviceStateManager::moveToButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, int &rtnNumInvoke) const {
         auto mapping = toggle._valueToButtonMappings.find(value);
         if (mapping == toggle._valueToButtonMappings.end()) {
             return false;
@@ -285,6 +285,16 @@ namespace lm {
             }
             features.GetArray().PushBack(feature, allocator);
         }
+
+        rapidjson::Value resetFeature(rapidjson::kObjectType);
+        resetFeature.AddMember("access", 7, allocator);
+        resetFeature.AddMember("description", "Reset state", allocator);
+        resetFeature.AddMember("name", "reset", allocator);
+        resetFeature.AddMember("property", "reset", allocator);
+        resetFeature.AddMember("type", "binary", allocator);
+        resetFeature.AddMember("value_toggle", "TOGGLE", allocator);
+        features.GetArray().PushBack(resetFeature, allocator);
+
 
         rapidjson::Value exposedFeature(rapidjson::kObjectType);
         exposedFeature.AddMember("type", "ir", allocator);

@@ -50,7 +50,7 @@ namespace lm {
         std::map<std::string, DeviceState> _deviceStates;
 
         bool moveToStateUpDown(const std::string& value, DeviceToggle &toggleIt, std::string &rtnButton, int &rtnNumInvoke) const;
-        bool moveToSButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, int &rtnNumInvoke) const;
+        bool moveToButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, int &rtnNumInvoke) const;
 
     public:
         explicit DeviceStateManager(Properties properties);

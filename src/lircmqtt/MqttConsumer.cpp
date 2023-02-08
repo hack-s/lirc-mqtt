@@ -188,6 +188,14 @@ lm::callback::callback(mqtt::async_client &cli, mqtt::connect_options &connOpts,
                     std::string toggleName = it->name.GetString();
                     std::string value = it->value.GetString();
 
+                    if (toggleName == "reset") {
+                        if (value == "TOGGLE") {
+                            std::cout << "Resetting state for device " << deviceName << std::endl;
+                            lDeviceStateManager->resetDeviceState(deviceName);
+                            continue;
+                        }
+                    }
+
                     std::string button;
                     int numInvokes;
                     bool resetState = false;
