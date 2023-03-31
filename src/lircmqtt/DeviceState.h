@@ -24,7 +24,7 @@ namespace lm {
         std::string _button_forward;
         std::string _button_backwards;
         bool _wrap_around;
-        std::map<std::string, std::string> _valueToButtonMappings;
+        std::map<std::string, std::vector<std::string>> _valueToButtonMappings;
         std::vector<std::string> _reset_state_on;
     };
 
@@ -49,15 +49,15 @@ namespace lm {
         Properties _properties;
         std::map<std::string, DeviceState> _deviceStates;
 
-        bool moveToStateUpDown(const std::string& value, DeviceToggle &toggleIt, std::string &rtnButton, int &rtnNumInvoke) const;
-        bool moveToButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::string &rtnButton, int &rtnNumInvoke) const;
+        bool moveToStateUpDown(const std::string& value, DeviceToggle &toggleIt, std::vector<std::string> &rtnButton, int &rtnNumInvoke) const;
+        bool moveToButtonValueMapping(const std::string& value, DeviceToggle &toggle, std::vector<std::string> &rtnButton, int &rtnNumInvoke) const;
 
     public:
         explicit DeviceStateManager(Properties properties);
 
         void addDeviceState(const rapidjson::Value& json);
 
-        bool moveToState(const std::string& deviceName, const std::string& toggleName, const std::string& value, std::string& rtnButton, int& rtnNumInvokes, bool& rtnResetState, long& rtnControlIntervalMs);
+        bool moveToState(const std::string& deviceName, const std::string& toggleName, const std::string& value, std::vector<std::string>& rtnButton, int& rtnNumInvokes, bool& rtnResetState, long& rtnControlIntervalMs);
         bool setState(const std::string& deviceName, const std::string& toggleName, const std::string& value);
         bool resetDeviceState(const std::string& deviceName);
 
