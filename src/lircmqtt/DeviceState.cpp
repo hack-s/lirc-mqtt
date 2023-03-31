@@ -77,7 +77,7 @@ namespace lm {
                         buttons.emplace_back(valueButtonMappings[j]["button"].GetString());
                     }
                     if (valueButtonMappings[j].HasMember("buttons")) {
-                        auto buttonValues = deviceToggleJson["valueButtonMappings"].GetArray();
+                        auto buttonValues = valueButtonMappings[j]["buttons"].GetArray();
                         for (const auto& buttonValue : buttonValues) {
                             buttons.emplace_back(buttonValue.GetString());
                         }
